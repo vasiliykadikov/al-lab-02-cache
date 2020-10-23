@@ -1,7 +1,7 @@
 // Copyright 2020 vasiliykadikov@inbox.ru
 
 #include <gtest/gtest.h>
-#include <cource.cpp>
+#include <header.hpp>
 
 TEST(CACHE, Test1) {
     EXPECT_EQ(array_checks(16), 32);
