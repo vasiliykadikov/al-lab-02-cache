@@ -4,9 +4,8 @@
 L1 = 256 kb
 L2 = 1.0 mb (1024 kb)
 L3 = 6.0 mb (6144 kb)
-128 <  256 < 512 < 1024 < 2048 < 4096 < 8192 < 9216
-0.125 < 0.25 < 0.5 < 1 < 2 < 4 < 8 < 9
 */
+#include "header.hpp"
 #include <iostream>
 #include <algorithm>
 #include <ctime>
