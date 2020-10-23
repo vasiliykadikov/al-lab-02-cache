@@ -12,15 +12,15 @@ L3 = 6.0 mb (6144 kb)
 #include <ctime>
 #include <random>
 
-#define MULT(x) x x x x x x x x x x x x x x x x 
+#define MULT(x) x x x x x x x x x x x x x x x x
 
-void print_time(int array_size, double c_end, double c_begin, long int j) {
-    auto time = (!!j) * (double(c_end) - double(c_begin)) / (CLOCKS_PER_SEC * 0.04096);
+void print_time(int array_size, double c_end,
+    double c_begin, int j) {
+    auto time = (!!j) * (c_end - c_begin)
+        / (CLOCKS_PER_SEC * 0.04096);
     std::cout << "\n        input_data:\n" << "          buffer_size: ";
     std::cout << array_size << "kb\n" << "        results:\n";
     std::cout << "          duration: " << time << "ns\n";
-    //std::cout << "array size: " << array_size << "kb time: " << time << "ns\n";
-    //std::cout << "(" << array_size << ";" << time << ") ";
 }
 void straight_method(int array_size) {
     int* arr = new int[array_size * 1024 / 4];
@@ -28,7 +28,7 @@ void straight_method(int array_size) {
         arr[i] = i + 16;
     }
     arr[array_size * 1024 / 4 - 16] = 0;
-    long int j = 0;
+    int j = 0;
     auto c_begin = std::clock();
     for (int i = 0; i < 10'000; ++i) {
         MULT(MULT(MULT(j = arr[j];)));
@@ -45,7 +45,7 @@ void back_method(int array_size) {
         arr[i] = i - 16;
     }
     arr[0] = array_size * 1024 / 4 - 16;;
-    long int j = 0;
+    int j = 0;
     auto c_begin = std::clock();
     for (int i = 0; i < 10'000; ++i) {
         MULT(MULT(MULT(j = arr[j];)));
@@ -67,7 +67,7 @@ void random_method(int array_size) {
         arr[i] = index[i / 16];
     }
     arr[0] = array_size * 1024 / 4 - 16;;
-    long int j = 0;
+    int j = 0;
     auto c_begin = std::clock();
     for (int i = 0; i < 10'000; ++i) {
         MULT(MULT(MULT(j = arr[j];)));
@@ -81,11 +81,9 @@ void random_method(int array_size) {
 int array_checks(int array_size) {
     if (array_size < 512) {
         array_size += 16;
-    }
-    else if (array_size < 1536) {
+    } else if (array_size < 1536) {
         array_size += 64;
-    }
-    else if (array_size <= 8 * 1024) {
+    } else if (array_size <= 8 * 1024) {
         array_size += 256;
     }
     return array_size;
@@ -93,20 +91,22 @@ int array_checks(int array_size) {
 void f_print() {
     int L1_begin = 64;
     int L3_end = 8*1024;
-       
-    //прямой обход 
+
+//прямой обход 
    int array_size = L1_begin;
-   std::cout << "  investigaion:\n    travel_order: straight\n    experiments:\n";
+   std::cout << "  investigaion:\n    travel_order: straight\n";
+   std::cout << "    experiments:\n";
    int exp = 1;
    while (array_size <= L3_end) {
         std::cout << "    - experiment:\n        number: " << exp;
         straight_method(array_size);
         array_size = array_checks(array_size);
         exp++;
-    } 
-   ///обратный обход
+    }
+//обратный обход
     array_size = L1_begin;
-    std::cout << "  investigaion:\n    travel_order: reverce\n    experiments:\n";
+    std::cout << "  investigaion:\n    travel_order: straight\n";
+    std::cout << "    experiments:\n";
     exp = 1;
     while (array_size <= L3_end) {
         std::cout << "    - experiment:\n        number: " << exp;
@@ -114,9 +114,10 @@ void f_print() {
         array_size = array_checks(array_size);
         exp++;
     }
-    //рандомный обход
+//рандомный обход
     array_size = L1_begin;
-    std::cout << "  investigaion:\n    travel_order: random\n    experiments:\n";
+    std::cout << "  investigaion:\n    travel_order: straight\n";
+    std::cout << "    experiments:\n";
     exp = 1;
     while (array_size <= L3_end) {
         std::cout << "    - experiment:\n        number: " << exp;
