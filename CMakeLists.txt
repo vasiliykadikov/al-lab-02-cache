@@ -35,8 +35,13 @@ add_executable(tests
   ${CMAKE_CURRENT_SOURCE_DIR}/tests/test.cpp
 )
 
+target_include_directories(cache
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_include_directories(tests 
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
-# TODO: change template word to project name and delete this comment
 target_link_libraries(tests GTest::main cache)
 
 enable_testing()
