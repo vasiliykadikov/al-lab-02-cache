@@ -1,158 +1,1300 @@
 # Лабораторная работа №2
 
-В большинстве современных ПК используется следующая иерархия памяти:
-| Тип | Скорость доступа | Размер |
-| - | - | - |
-| Регистры процессора | порядка 1 такта | несколько сотен или тысяч байт |
-| Кэш процессора L1 | порядка несколько тактов | десятки килобайт |
-| Кэш процессора L2 | от 2 до 10 раз медленнее L1 | от 0.5Mb |
-| Кэш процессора L3 | около сотни тактов | от нескольких мегабайт до сотен |
-| Кэш процессора L4 (Intel 5 поколения) | несколько сотен тактов | >100Mb |
-| ОЗУ | от сотен до тысяч тактов | от нескольких гигабайт до нескольких терабайт |
-| Дисковое хранилище | миллионы тактов | до нескольких сотен терабайт |
-| Третичная память | до нескольких секунд или минут | практически неограничен |
+Графики записимости времени доступа к элементу массива от размера массива:
+1. Прямой обход
+![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/straight.png)
 
-> Кэш - промежуточный буфер с быстрым доступом, содержащий информацию, которая может быть запрошена с наибольшей вероятностью. Доступ к данным в кэше осуществляется быстрее, чем выборка исходных данных из более медленной памяти или удаленного источника, однако её объём существенно ограничен по сравнению с хранилищем исходных данных.
+2. Обратный обход
+![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/reverce.png)
 
-Информация в кэше хранится в виде групп ячеек памяти (строк), организованных в так называемые **кэш-линии**. Размер кэш-линий может отличаться в разных процессорах, но для большинства x86-процессоров он составляет 64 байта.
+3. Случайный обход
+![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/random.png)
 
-Рассмотрим на примере чтение первого элемента массива из оперативной памяти (пусть `sizeof(int)` равен 4 байта):
-```cpp
-int* arr = new int[32]; // 4 * 32 = 128 байт
-int i = arr[0]; // чтение первого элемента (первых четырёх байт) из массива arr
-```
-![Cache](./images/cache.gif)
-
-При первом чтении данных, которых еще нет в кэш-памяти, происходит серия промахов. В итоге данные были получены из ОЗУ и сохранены на всех уровнях кэша. **Важно** отметить, что размер запрашиваемой памяти составляет 4 байта (первый элемент массива), однако чтение из памяти происходит блоками по 64 байта (размер линии кэша).
-
-Теперь повторное чтение **любых** данных из первых 64 байт массива будет приводить к попаданию в кэш.
-```cpp
-int j = arr[0]; // чтение с 0 по 3 байт
-int k = arr[4]; // чтение с 16 по 19 байт
-int m = arr[15]; // чтение с 60 по 63 байт
-```
-![Cache](./images/cache_hit.gif)
-
-Если же обратиться к любому элементу из второй половины массива (с 16 по 31 элемент), то снова произойдет серия промахов, после чего данные будут успешно кэшированы:
-```cpp
-int j = arr[16];
-```
-![Cache](./images/cache_2.gif)
-
-Теперь массив `arr` полностью находится в кэше `L1`, следовательно любое обращение к элементам массива `arr` будет приводить к попаданию в кэш `L1` и иметь очень высокую скорость чтения.
-
-В случае, если кэш-память заполнена, новые данные вытесняют самые старые.
-
-Далеко не всегда массив может полностью поместиться в кэш-уровене. В качестве примера рассмотрим кэш-уровень `L1` размером `256` байт и два массива `arr1` и `arr2` размером в `256` байт и `320` байт соответственно:
-```cpp
-int * arr1 = new int[64]; // 4 * 64 = 256 байт
-int * arr2 = new int[80]; // 4 * 80 = 320 байт
-```
-
-Попробуем обойти массивы в цикле. При чтении одного элемента массива фактически из памяти считывается одна кэш-линия размером в `64` байта. Это означает что в кэш считывается сразу `16` элементов типа `int` (16 * 4 = 64 байта). Поэтому немного оптимизируем наш обход и будем считывать каждый 16-ый элемент массива начиная с нулевого, т.е. элементы с индексами [0, 16, 32, 48, 64...]. При таком способе обхода кадждая попытка чтения будет приводить к загрузке **новой** кэш-линии. Очевидно, что при первом обходе в кэш-памяти нету необходимых данных и будут промахи. Назовем этот проход **прогревом** кэша. Поэтому совершим как минимум два обхода:
-```cpp
-int k = 0;
-int arr1 = new int[64]; // 4 * 64 = 256 байт
-for (int i = 0; i < 64; i += 16) // прогрев
-    k = arr1[i];
-for (int i = 0; i < 64; i += 16) // чтение
-    k = arr1[i];
-```
-![Cache](./images/cache_loop_1.gif)
-
-При прогреве кэша происходят промахи и приходится производить чтение из следующих уровней памяти. Следовательно, время обращения к элементу массива увеличивается. После прогрева массив `arr1` полностью поместился в кэш-памяти `L1` и время обращения к элементу массива стало равным времени чтения из `L1`.
-
-Однако ситуация меняется для массива `arr2`, который не вмещается в кэш `L1`:
-```cpp
-int k = 0;
-int arr2 = new int[80]; // 4 * 80 = 320 байт
-for (int i = 0; i < 80; i += 16) // прогрев
-    k = arr2[i];
-for (int i = 0; i < 80; i += 16) // чтение
-    k = arr2[i];
-```
-![Cache](./images/cache_loop_2.gif)
-
-Т.к. массив `arr2` не вмещается в `L1`, то при каждом считывании новой линии кэша происходит промах. Точно такая же логика справедлива для остальных кэш-уровней. Таким образом, обходя массивы различных размеров описанным выше способом, можно измерить время чтения одного элемента массива для каджого кэш-уровня процессора.
-
-### Задача
-
-Используя описанный выше способ обхода провести исследование зависимости времени чтения одного элемента массива от размера массива.
-
-Обход совершить тремя способами:
-- **прямой** (0, 16, 32, 48, ...);
-- **обратный** (..., 64, 48, 32, 16, 0);
-- **случайный** (например 32, 128, 0, 16, 48, 64 и т.д.).
-
-Каждое исследование включает в себя серию эксперементов c определенными размерами.
-
-Количество экспериментов в серии определяется следующим образом:
-
-```cpp
-1/2 * cache_sizes['1'] < 2^x < 2^(x+1) < ... < 2^(x+n) < 3/2 * cache_sizes['max']
-```
-
-### Пример
-
-В примере ниже показано, что для процессора с тремя уровнями кэша (`2mb`, `4mb`, `8mb`)
-необходимо провести серию из 5 эксперементов.
-
-```cpp
-cache_size['1'] = 2 mb;
-cache_size['2'] = 4 mb;
-cache_size['3'] = 8 mb;
-
-// 1mb < 2mb < 4mb < 8mb < 12mb
-```
-
-### Эксперимент
-
-Каждый эксперемент состоит из 3 шагов:
-
-```cpp
-1. Создание буфера
-2. Прогревание кэша
-// <-- время начала эксперемнта
-3. Циклический проход (1000 итераций)
-// <-- время окончание эксперемента
-```
-
-#### Шаг 1
-
-Инициализация буфера может происходить, как с помощью чтения данных из файла в выделенную область памяти,
-так и с помощью случайного заполнения с использованием генератора случайных чисел.
-
-#### Шаг 2
-
-Данный шаг необходимо выполнить для получения репрезентативных данных, т.к. кэш-память еще не заполнена.
-
-#### Шаг 3
-
-Для получения времени обхода от размера массива процедуру прохода необходимо многократно повторить (порядка 1000 раз).
-
-### Результаты
-
-Ниже представлен формат и пример отчета:
-
-```yaml
-investigation:                                       |  investigaion:
-  travel_variant: <вариант_прохода>                  |    travel_order: "direction"
-  experiments:                                       |    experiments:
-  - experiment:                                      |    - experiment:
-      number:                                        |        number: 1
-      input_data:                                    |        input_data:
-        buffer_size: <размер_буфера>                 |          buffer_size: "1mb"
-      results:                                       |        results:
-        duration: <продолжительность>                |          duration: "1ns"
-  - experiment:                                      |    - experiment:
-      number: <номер_эксперимента>                   |        number: 2
-      input_data:                                    |        input_data:
-        buffer_size: <размер_буфера>                 |          buffer_size: "2mb"
-      results:                                       |        results:
-        duration: <продолжительность>                |          duration: "2ns"
-                                                     |
-investigation:                                       |  investigation:
-...                                                  |  ...
-```
-
-⚠️ В отчет также необходимо добавить общий график с результатами всех исследований. ⚠️
+В процессе работы программа выдала следующие результаты:
+  investigaion:
+    travel_order: straight
+    experiments:
+    - experiment:
+        number: 1
+        input_data:
+          buffer_size: 64kb
+        results:
+          duration: 4.88281ns
+    - experiment:
+        number: 2
+        input_data:
+          buffer_size: 80kb
+        results:
+          duration: 4.46777ns
+    - experiment:
+        number: 3
+        input_data:
+          buffer_size: 96kb
+        results:
+          duration: 4.56543ns
+    - experiment:
+        number: 4
+        input_data:
+          buffer_size: 112kb
+        results:
+          duration: 4.61426ns
+    - experiment:
+        number: 5
+        input_data:
+          buffer_size: 128kb
+        results:
+          duration: 4.98047ns
+    - experiment:
+        number: 6
+        input_data:
+          buffer_size: 144kb
+        results:
+          duration: 4.73633ns
+    - experiment:
+        number: 7
+        input_data:
+          buffer_size: 160kb
+        results:
+          duration: 4.8584ns
+    - experiment:
+        number: 8
+        input_data:
+          buffer_size: 176kb
+        results:
+          duration: 5.24902ns
+    - experiment:
+        number: 9
+        input_data:
+          buffer_size: 192kb
+        results:
+          duration: 5.54199ns
+    - experiment:
+        number: 10
+        input_data:
+          buffer_size: 208kb
+        results:
+          duration: 5.24902ns
+    - experiment:
+        number: 11
+        input_data:
+          buffer_size: 224kb
+        results:
+          duration: 4.80957ns
+    - experiment:
+        number: 12
+        input_data:
+          buffer_size: 240kb
+        results:
+          duration: 4.83398ns
+    - experiment:
+        number: 13
+        input_data:
+          buffer_size: 256kb
+        results:
+          duration: 4.83398ns
+    - experiment:
+        number: 14
+        input_data:
+          buffer_size: 272kb
+        results:
+          duration: 4.83398ns
+    - experiment:
+        number: 15
+        input_data:
+          buffer_size: 288kb
+        results:
+          duration: 5.34668ns
+    - experiment:
+        number: 16
+        input_data:
+          buffer_size: 304kb
+        results:
+          duration: 7.00684ns
+    - experiment:
+        number: 17
+        input_data:
+          buffer_size: 320kb
+        results:
+          duration: 7.34863ns
+    - experiment:
+        number: 18
+        input_data:
+          buffer_size: 336kb
+        results:
+          duration: 5.78613ns
+    - experiment:
+        number: 19
+        input_data:
+          buffer_size: 352kb
+        results:
+          duration: 6.5918ns
+    - experiment:
+        number: 20
+        input_data:
+          buffer_size: 368kb
+        results:
+          duration: 6.83594ns
+    - experiment:
+        number: 21
+        input_data:
+          buffer_size: 384kb
+        results:
+          duration: 5.93262ns
+    - experiment:
+        number: 22
+        input_data:
+          buffer_size: 400kb
+        results:
+          duration: 4.95605ns
+    - experiment:
+        number: 23
+        input_data:
+          buffer_size: 416kb
+        results:
+          duration: 5.81055ns
+    - experiment:
+        number: 24
+        input_data:
+          buffer_size: 432kb
+        results:
+          duration: 5.22461ns
+    - experiment:
+        number: 25
+        input_data:
+          buffer_size: 448kb
+        results:
+          duration: 5.0293ns
+    - experiment:
+        number: 26
+        input_data:
+          buffer_size: 464kb
+        results:
+          duration: 4.83398ns
+    - experiment:
+        number: 27
+        input_data:
+          buffer_size: 480kb
+        results:
+          duration: 4.80957ns
+    - experiment:
+        number: 28
+        input_data:
+          buffer_size: 496kb
+        results:
+          duration: 4.83398ns
+    - experiment:
+        number: 29
+        input_data:
+          buffer_size: 512kb
+        results:
+          duration: 4.63867ns
+    - experiment:
+        number: 30
+        input_data:
+          buffer_size: 576kb
+        results:
+          duration: 4.63867ns
+    - experiment:
+        number: 31
+        input_data:
+          buffer_size: 640kb
+        results:
+          duration: 4.71191ns
+    - experiment:
+        number: 32
+        input_data:
+          buffer_size: 704kb
+        results:
+          duration: 4.5166ns
+    - experiment:
+        number: 33
+        input_data:
+          buffer_size: 768kb
+        results:
+          duration: 4.78516ns
+    - experiment:
+        number: 34
+        input_data:
+          buffer_size: 832kb
+        results:
+          duration: 4.63867ns
+    - experiment:
+        number: 35
+        input_data:
+          buffer_size: 896kb
+        results:
+          duration: 4.61426ns
+    - experiment:
+        number: 36
+        input_data:
+          buffer_size: 960kb
+        results:
+          duration: 4.78516ns
+    - experiment:
+        number: 37
+        input_data:
+          buffer_size: 1024kb
+        results:
+          duration: 4.8584ns
+    - experiment:
+        number: 38
+        input_data:
+          buffer_size: 1088kb
+        results:
+          duration: 5.00488ns
+    - experiment:
+        number: 39
+        input_data:
+          buffer_size: 1152kb
+        results:
+          duration: 5.10254ns
+    - experiment:
+        number: 40
+        input_data:
+          buffer_size: 1216kb
+        results:
+          duration: 4.76074ns
+    - experiment:
+        number: 41
+        input_data:
+          buffer_size: 1280kb
+        results:
+          duration: 4.66309ns
+    - experiment:
+        number: 42
+        input_data:
+          buffer_size: 1344kb
+        results:
+          duration: 4.80957ns
+    - experiment:
+        number: 43
+        input_data:
+          buffer_size: 1408kb
+        results:
+          duration: 4.93164ns
+    - experiment:
+        number: 44
+        input_data:
+          buffer_size: 1472kb
+        results:
+          duration: 4.8584ns
+    - experiment:
+        number: 45
+        input_data:
+          buffer_size: 1536kb
+        results:
+          duration: 4.66309ns
+    - experiment:
+        number: 46
+        input_data:
+          buffer_size: 1792kb
+        results:
+          duration: 4.66309ns
+    - experiment:
+        number: 47
+        input_data:
+          buffer_size: 2048kb
+        results:
+          duration: 4.6875ns
+    - experiment:
+        number: 48
+        input_data:
+          buffer_size: 2304kb
+        results:
+          duration: 5.05371ns
+    - experiment:
+        number: 49
+        input_data:
+          buffer_size: 2560kb
+        results:
+          duration: 4.8584ns
+    - experiment:
+        number: 50
+        input_data:
+          buffer_size: 2816kb
+        results:
+          duration: 5.15137ns
+    - experiment:
+        number: 51
+        input_data:
+          buffer_size: 3072kb
+        results:
+          duration: 4.95605ns
+    - experiment:
+        number: 52
+        input_data:
+          buffer_size: 3328kb
+        results:
+          duration: 5.0293ns
+    - experiment:
+        number: 53
+        input_data:
+          buffer_size: 3584kb
+        results:
+          duration: 5.05371ns
+    - experiment:
+        number: 54
+        input_data:
+          buffer_size: 3840kb
+        results:
+          duration: 5.12695ns
+    - experiment:
+        number: 55
+        input_data:
+          buffer_size: 4096kb
+        results:
+          duration: 5.22461ns
+    - experiment:
+        number: 56
+        input_data:
+          buffer_size: 4352kb
+        results:
+          duration: 5.29785ns
+    - experiment:
+        number: 57
+        input_data:
+          buffer_size: 4608kb
+        results:
+          duration: 5.56641ns
+    - experiment:
+        number: 58
+        input_data:
+          buffer_size: 4864kb
+        results:
+          duration: 5.24902ns
+    - experiment:
+        number: 59
+        input_data:
+          buffer_size: 5120kb
+        results:
+          duration: 5.12695ns
+    - experiment:
+        number: 60
+        input_data:
+          buffer_size: 5376kb
+        results:
+          duration: 5.24902ns
+    - experiment:
+        number: 61
+        input_data:
+          buffer_size: 5632kb
+        results:
+          duration: 5.39551ns
+    - experiment:
+        number: 62
+        input_data:
+          buffer_size: 5888kb
+        results:
+          duration: 5.71289ns
+    - experiment:
+        number: 63
+        input_data:
+          buffer_size: 6144kb
+        results:
+          duration: 5.66406ns
+    - experiment:
+        number: 64
+        input_data:
+          buffer_size: 6400kb
+        results:
+          duration: 5.68848ns
+    - experiment:
+        number: 65
+        input_data:
+          buffer_size: 6656kb
+        results:
+          duration: 5.76172ns
+    - experiment:
+        number: 66
+        input_data:
+          buffer_size: 6912kb
+        results:
+          duration: 5.83496ns
+    - experiment:
+        number: 67
+        input_data:
+          buffer_size: 7168kb
+        results:
+          duration: 5.7373ns
+    - experiment:
+        number: 68
+        input_data:
+          buffer_size: 7424kb
+        results:
+          duration: 5.83496ns
+    - experiment:
+        number: 69
+        input_data:
+          buffer_size: 7680kb
+        results:
+          duration: 5.85938ns
+    - experiment:
+        number: 70
+        input_data:
+          buffer_size: 7936kb
+        results:
+          duration: 5.66406ns
+    - experiment:
+        number: 71
+        input_data:
+          buffer_size: 8192kb
+        results:
+          duration: 5.71289ns
+  investigaion:
+    travel_order: reverce
+    experiments:
+    - experiment:
+        number: 1
+        input_data:
+          buffer_size: 64kb
+        results:
+          duration: 4.19922ns
+    - experiment:
+        number: 2
+        input_data:
+          buffer_size: 80kb
+        results:
+          duration: 4.22363ns
+    - experiment:
+        number: 3
+        input_data:
+          buffer_size: 96kb
+        results:
+          duration: 4.32129ns
+    - experiment:
+        number: 4
+        input_data:
+          buffer_size: 112kb
+        results:
+          duration: 4.73633ns
+    - experiment:
+        number: 5
+        input_data:
+          buffer_size: 128kb
+        results:
+          duration: 4.6875ns
+    - experiment:
+        number: 6
+        input_data:
+          buffer_size: 144kb
+        results:
+          duration: 4.6875ns
+    - experiment:
+        number: 7
+        input_data:
+          buffer_size: 160kb
+        results:
+          duration: 4.3457ns
+    - experiment:
+        number: 8
+        input_data:
+          buffer_size: 176kb
+        results:
+          duration: 4.37012ns
+    - experiment:
+        number: 9
+        input_data:
+          buffer_size: 192kb
+        results:
+          duration: 4.41895ns
+    - experiment:
+        number: 10
+        input_data:
+          buffer_size: 208kb
+        results:
+          duration: 4.78516ns
+    - experiment:
+        number: 11
+        input_data:
+          buffer_size: 224kb
+        results:
+          duration: 5.15137ns
+    - experiment:
+        number: 12
+        input_data:
+          buffer_size: 240kb
+        results:
+          duration: 4.93164ns
+    - experiment:
+        number: 13
+        input_data:
+          buffer_size: 256kb
+        results:
+          duration: 4.95605ns
+    - experiment:
+        number: 14
+        input_data:
+          buffer_size: 272kb
+        results:
+          duration: 5.24902ns
+    - experiment:
+        number: 15
+        input_data:
+          buffer_size: 288kb
+        results:
+          duration: 5.39551ns
+    - experiment:
+        number: 16
+        input_data:
+          buffer_size: 304kb
+        results:
+          duration: 5.54199ns
+    - experiment:
+        number: 17
+        input_data:
+          buffer_size: 320kb
+        results:
+          duration: 5.66406ns
+    - experiment:
+        number: 18
+        input_data:
+          buffer_size: 336kb
+        results:
+          duration: 5.88379ns
+    - experiment:
+        number: 19
+        input_data:
+          buffer_size: 352kb
+        results:
+          duration: 5.88379ns
+    - experiment:
+        number: 20
+        input_data:
+          buffer_size: 368kb
+        results:
+          duration: 5.88379ns
+    - experiment:
+        number: 21
+        input_data:
+          buffer_size: 384kb
+        results:
+          duration: 5.98145ns
+    - experiment:
+        number: 22
+        input_data:
+          buffer_size: 400kb
+        results:
+          duration: 6.03027ns
+    - experiment:
+        number: 23
+        input_data:
+          buffer_size: 416kb
+        results:
+          duration: 6.00586ns
+    - experiment:
+        number: 24
+        input_data:
+          buffer_size: 432kb
+        results:
+          duration: 5.95703ns
+    - experiment:
+        number: 25
+        input_data:
+          buffer_size: 448kb
+        results:
+          duration: 6.00586ns
+    - experiment:
+        number: 26
+        input_data:
+          buffer_size: 464kb
+        results:
+          duration: 5.98145ns
+    - experiment:
+        number: 27
+        input_data:
+          buffer_size: 480kb
+        results:
+          duration: 5.9082ns
+    - experiment:
+        number: 28
+        input_data:
+          buffer_size: 496kb
+        results:
+          duration: 5.83496ns
+    - experiment:
+        number: 29
+        input_data:
+          buffer_size: 512kb
+        results:
+          duration: 5.85938ns
+    - experiment:
+        number: 30
+        input_data:
+          buffer_size: 576kb
+        results:
+          duration: 6.00586ns
+    - experiment:
+        number: 31
+        input_data:
+          buffer_size: 640kb
+        results:
+          duration: 5.9082ns
+    - experiment:
+        number: 32
+        input_data:
+          buffer_size: 704kb
+        results:
+          duration: 6.00586ns
+    - experiment:
+        number: 33
+        input_data:
+          buffer_size: 768kb
+        results:
+          duration: 6.03027ns
+    - experiment:
+        number: 34
+        input_data:
+          buffer_size: 832kb
+        results:
+          duration: 6.10352ns
+    - experiment:
+        number: 35
+        input_data:
+          buffer_size: 896kb
+        results:
+          duration: 6.37207ns
+    - experiment:
+        number: 36
+        input_data:
+          buffer_size: 960kb
+        results:
+          duration: 5.93262ns
+    - experiment:
+        number: 37
+        input_data:
+          buffer_size: 1024kb
+        results:
+          duration: 6.10352ns
+    - experiment:
+        number: 38
+        input_data:
+          buffer_size: 1088kb
+        results:
+          duration: 6.15234ns
+    - experiment:
+        number: 39
+        input_data:
+          buffer_size: 1152kb
+        results:
+          duration: 5.95703ns
+    - experiment:
+        number: 40
+        input_data:
+          buffer_size: 1216kb
+        results:
+          duration: 5.9082ns
+    - experiment:
+        number: 41
+        input_data:
+          buffer_size: 1280kb
+        results:
+          duration: 5.9082ns
+    - experiment:
+        number: 42
+        input_data:
+          buffer_size: 1344kb
+        results:
+          duration: 6.15234ns
+    - experiment:
+        number: 43
+        input_data:
+          buffer_size: 1408kb
+        results:
+          duration: 6.10352ns
+    - experiment:
+        number: 44
+        input_data:
+          buffer_size: 1472kb
+        results:
+          duration: 6.00586ns
+    - experiment:
+        number: 45
+        input_data:
+          buffer_size: 1536kb
+        results:
+          duration: 6.27441ns
+    - experiment:
+        number: 46
+        input_data:
+          buffer_size: 1792kb
+        results:
+          duration: 6.17676ns
+    - experiment:
+        number: 47
+        input_data:
+          buffer_size: 2048kb
+        results:
+          duration: 6.20117ns
+    - experiment:
+        number: 48
+        input_data:
+          buffer_size: 2304kb
+        results:
+          duration: 6.15234ns
+    - experiment:
+        number: 49
+        input_data:
+          buffer_size: 2560kb
+        results:
+          duration: 6.32324ns
+    - experiment:
+        number: 50
+        input_data:
+          buffer_size: 2816kb
+        results:
+          duration: 6.12793ns
+    - experiment:
+        number: 51
+        input_data:
+          buffer_size: 3072kb
+        results:
+          duration: 6.10352ns
+    - experiment:
+        number: 52
+        input_data:
+          buffer_size: 3328kb
+        results:
+          duration: 6.10352ns
+    - experiment:
+        number: 53
+        input_data:
+          buffer_size: 3584kb
+        results:
+          duration: 6.68945ns
+    - experiment:
+        number: 54
+        input_data:
+          buffer_size: 3840kb
+        results:
+          duration: 6.54297ns
+    - experiment:
+        number: 55
+        input_data:
+          buffer_size: 4096kb
+        results:
+          duration: 6.86035ns
+    - experiment:
+        number: 56
+        input_data:
+          buffer_size: 4352kb
+        results:
+          duration: 6.86035ns
+    - experiment:
+        number: 57
+        input_data:
+          buffer_size: 4608kb
+        results:
+          duration: 6.83594ns
+    - experiment:
+        number: 58
+        input_data:
+          buffer_size: 4864kb
+        results:
+          duration: 7.08008ns
+    - experiment:
+        number: 59
+        input_data:
+          buffer_size: 5120kb
+        results:
+          duration: 7.08008ns
+    - experiment:
+        number: 60
+        input_data:
+          buffer_size: 5376kb
+        results:
+          duration: 7.56836ns
+    - experiment:
+        number: 61
+        input_data:
+          buffer_size: 5632kb
+        results:
+          duration: 7.03125ns
+    - experiment:
+        number: 62
+        input_data:
+          buffer_size: 5888kb
+        results:
+          duration: 7.03125ns
+    - experiment:
+        number: 63
+        input_data:
+          buffer_size: 6144kb
+        results:
+          duration: 7.34863ns
+    - experiment:
+        number: 64
+        input_data:
+          buffer_size: 6400kb
+        results:
+          duration: 7.8125ns
+    - experiment:
+        number: 65
+        input_data:
+          buffer_size: 6656kb
+        results:
+          duration: 7.71484ns
+    - experiment:
+        number: 66
+        input_data:
+          buffer_size: 6912kb
+        results:
+          duration: 7.91016ns
+    - experiment:
+        number: 67
+        input_data:
+          buffer_size: 7168kb
+        results:
+          duration: 7.61719ns
+    - experiment:
+        number: 68
+        input_data:
+          buffer_size: 7424kb
+        results:
+          duration: 7.66602ns
+    - experiment:
+        number: 69
+        input_data:
+          buffer_size: 7680kb
+        results:
+          duration: 7.66602ns
+    - experiment:
+        number: 70
+        input_data:
+          buffer_size: 7936kb
+        results:
+          duration: 7.56836ns
+    - experiment:
+        number: 71
+        input_data:
+          buffer_size: 8192kb
+        results:
+          duration: 7.39746ns
+  investigaion:
+    travel_order: random
+    experiments:
+    - experiment:
+        number: 1
+        input_data:
+          buffer_size: 64kb
+        results:
+          duration: 2.24609ns
+    - experiment:
+        number: 2
+        input_data:
+          buffer_size: 80kb
+        results:
+          duration: 2.34375ns
+    - experiment:
+        number: 3
+        input_data:
+          buffer_size: 96kb
+        results:
+          duration: 4.12598ns
+    - experiment:
+        number: 4
+        input_data:
+          buffer_size: 112kb
+        results:
+          duration: 4.32129ns
+    - experiment:
+        number: 5
+        input_data:
+          buffer_size: 128kb
+        results:
+          duration: 2.51465ns
+    - experiment:
+        number: 6
+        input_data:
+          buffer_size: 144kb
+        results:
+          duration: 4.1748ns
+    - experiment:
+        number: 7
+        input_data:
+          buffer_size: 160kb
+        results:
+          duration: 4.24805ns
+    - experiment:
+        number: 8
+        input_data:
+          buffer_size: 176kb
+        results:
+          duration: 2.97852ns
+    - experiment:
+        number: 9
+        input_data:
+          buffer_size: 192kb
+        results:
+          duration: 4.3457ns
+    - experiment:
+        number: 10
+        input_data:
+          buffer_size: 208kb
+        results:
+          duration: 4.39453ns
+    - experiment:
+        number: 11
+        input_data:
+          buffer_size: 224kb
+        results:
+          duration: 4.1748ns
+    - experiment:
+        number: 12
+        input_data:
+          buffer_size: 240kb
+        results:
+          duration: 4.37012ns
+    - experiment:
+        number: 13
+        input_data:
+          buffer_size: 256kb
+        results:
+          duration: 4.1748ns
+    - experiment:
+        number: 14
+        input_data:
+          buffer_size: 272kb
+        results:
+          duration: 3.2959ns
+    - experiment:
+        number: 15
+        input_data:
+          buffer_size: 288kb
+        results:
+          duration: 2.83203ns
+    - experiment:
+        number: 16
+        input_data:
+          buffer_size: 304kb
+        results:
+          duration: 5.93262ns
+    - experiment:
+        number: 17
+        input_data:
+          buffer_size: 320kb
+        results:
+          duration: 5.81055ns
+    - experiment:
+        number: 18
+        input_data:
+          buffer_size: 336kb
+        results:
+          duration: 4.3457ns
+    - experiment:
+        number: 19
+        input_data:
+          buffer_size: 352kb
+        results:
+          duration: 4.27246ns
+    - experiment:
+        number: 20
+        input_data:
+          buffer_size: 368kb
+        results:
+          duration: 5.59082ns
+    - experiment:
+        number: 21
+        input_data:
+          buffer_size: 384kb
+        results:
+          duration: 5.66406ns
+    - experiment:
+        number: 22
+        input_data:
+          buffer_size: 400kb
+        results:
+          duration: 9.32617ns
+    - experiment:
+        number: 23
+        input_data:
+          buffer_size: 416kb
+        results:
+          duration: 5.0293ns
+    - experiment:
+        number: 24
+        input_data:
+          buffer_size: 432kb
+        results:
+          duration: 6.25ns
+    - experiment:
+        number: 25
+        input_data:
+          buffer_size: 448kb
+        results:
+          duration: 7.34863ns
+    - experiment:
+        number: 26
+        input_data:
+          buffer_size: 464kb
+        results:
+          duration: 10.0342ns
+    - experiment:
+        number: 27
+        input_data:
+          buffer_size: 480kb
+        results:
+          duration: 3.32031ns
+    - experiment:
+        number: 28
+        input_data:
+          buffer_size: 496kb
+        results:
+          duration: 3.19824ns
+    - experiment:
+        number: 29
+        input_data:
+          buffer_size: 512kb
+        results:
+          duration: 4.78516ns
+    - experiment:
+        number: 30
+        input_data:
+          buffer_size: 576kb
+        results:
+          duration: 6.15234ns
+    - experiment:
+        number: 31
+        input_data:
+          buffer_size: 640kb
+        results:
+          duration: 7.88574ns
+    - experiment:
+        number: 32
+        input_data:
+          buffer_size: 704kb
+        results:
+          duration: 10.4004ns
+    - experiment:
+        number: 33
+        input_data:
+          buffer_size: 768kb
+        results:
+          duration: 4.83398ns
+    - experiment:
+        number: 34
+        input_data:
+          buffer_size: 832kb
+        results:
+          duration: 5.95703ns
+    - experiment:
+        number: 35
+        input_data:
+          buffer_size: 896kb
+        results:
+          duration: 12.5244ns
+    - experiment:
+        number: 36
+        input_data:
+          buffer_size: 960kb
+        results:
+          duration: 11.8408ns
+    - experiment:
+        number: 37
+        input_data:
+          buffer_size: 1024kb
+        results:
+          duration: 9.35059ns
+    - experiment:
+        number: 38
+        input_data:
+          buffer_size: 1088kb
+        results:
+          duration: 12.3779ns
+    - experiment:
+        number: 39
+        input_data:
+          buffer_size: 1152kb
+        results:
+          duration: 12.7686ns
+    - experiment:
+        number: 40
+        input_data:
+          buffer_size: 1216kb
+        results:
+          duration: 12.3535ns
+    - experiment:
+        number: 41
+        input_data:
+          buffer_size: 1280kb
+        results:
+          duration: 12.8906ns
+    - experiment:
+        number: 42
+        input_data:
+          buffer_size: 1344kb
+        results:
+          duration: 4.54102ns
+    - experiment:
+        number: 43
+        input_data:
+          buffer_size: 1408kb
+        results:
+          duration: 12.8174ns
+    - experiment:
+        number: 44
+        input_data:
+          buffer_size: 1472kb
+        results:
+          duration: 6.39648ns
+    - experiment:
+        number: 45
+        input_data:
+          buffer_size: 1536kb
+        results:
+          duration: 13.2568ns
+    - experiment:
+        number: 46
+        input_data:
+          buffer_size: 1792kb
+        results:
+          duration: 13.3789ns
+    - experiment:
+        number: 47
+        input_data:
+          buffer_size: 2048kb
+        results:
+          duration: 9.375ns
+    - experiment:
+        number: 48
+        input_data:
+          buffer_size: 2304kb
+        results:
+          duration: 14.0625ns
+    - experiment:
+        number: 49
+        input_data:
+          buffer_size: 2560kb
+        results:
+          duration: 13.9648ns
+    - experiment:
+        number: 50
+        input_data:
+          buffer_size: 2816kb
+        results:
+          duration: 13.6719ns
+    - experiment:
+        number: 51
+        input_data:
+          buffer_size: 3072kb
+        results:
+          duration: 15.0879ns
+    - experiment:
+        number: 52
+        input_data:
+          buffer_size: 3328kb
+        results:
+          duration: 6.49414ns
+    - experiment:
+        number: 53
+        input_data:
+          buffer_size: 3584kb
+        results:
+          duration: 14.7217ns
+    - experiment:
+        number: 54
+        input_data:
+          buffer_size: 3840kb
+        results:
+          duration: 13.9893ns
+    - experiment:
+        number: 55
+        input_data:
+          buffer_size: 4096kb
+        results:
+          duration: 6.61621ns
+    - experiment:
+        number: 56
+        input_data:
+          buffer_size: 4352kb
+        results:
+          duration: 13.4033ns
+    - experiment:
+        number: 57
+        input_data:
+          buffer_size: 4608kb
+        results:
+          duration: 13.8428ns
+    - experiment:
+        number: 58
+        input_data:
+          buffer_size: 4864kb
+        results:
+          duration: 14.209ns
+    - experiment:
+        number: 59
+        input_data:
+          buffer_size: 5120kb
+        results:
+          duration: 19.5801ns
+    - experiment:
+        number: 60
+        input_data:
+          buffer_size: 5376kb
+        results:
+          duration: 37.1826ns
+    - experiment:
+        number: 61
+        input_data:
+          buffer_size: 5632kb
+        results:
+          duration: 50.9277ns
+    - experiment:
+        number: 62
+        input_data:
+          buffer_size: 5888kb
+        results:
+          duration: 63.623ns
+    - experiment:
+        number: 63
+        input_data:
+          buffer_size: 6144kb
+        results:
+          duration: 23.5107ns
+    - experiment:
+        number: 64
+        input_data:
+          buffer_size: 6400kb
+        results:
+          duration: 73.2666ns
+    - experiment:
+        number: 65
+        input_data:
+          buffer_size: 6656kb
+        results:
+          duration: 48.6816ns
+    - experiment:
+        number: 66
+        input_data:
+          buffer_size: 6912kb
+        results:
+          duration: 6.68945ns
+    - experiment:
+        number: 67
+        input_data:
+          buffer_size: 7168kb
+        results:
+          duration: 16.4551ns
+    - experiment:
+        number: 68
+        input_data:
+          buffer_size: 7424kb
+        results:
+          duration: 18.9209ns
+    - experiment:
+        number: 69
+        input_data:
+          buffer_size: 7680kb
+        results:
+          duration: 16.4551ns
+    - experiment:
+        number: 70
+        input_data:
+          buffer_size: 7936kb
+        results:
+          duration: 15.3564ns
+    - experiment:
+        number: 71
+        input_data:
+          buffer_size: 8192kb
+        results:
+          duration: 65.7715ns
