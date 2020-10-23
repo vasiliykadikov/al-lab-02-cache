@@ -1,15 +1,15 @@
 # Лабораторная работа №2
 
-##Графики заdисимости времени доступа к элементу массива от размера массива:
-##1. Прямой обход
+## Графики зависимости времени доступа к элементу массива от размера массива:
+## 1. Прямой обход
 
 ![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/straight.png)
 
-##2. Обратный обход
+## 2. Обратный обход
 
 ![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/reverce.png)
 
-##3. Случайный обход
+## 3. Случайный обход
 
 ![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/random.png)
 В процессе работы программа выдала следующие результаты:
