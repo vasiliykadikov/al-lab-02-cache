@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iostream>
 #include <random>
+#include <vector>
 
 #define MULT(x) x x x x x x x x x x x x x x x x
 
@@ -40,7 +41,6 @@ void back_method(int array_size) {
     arr[i] = i - 16;
   }
   arr[0] = array_size * 1024 / 4 - 16;
-  ;
   int j = 0;
   auto c_begin = std::clock();
   for (int i = 0; i < 10'000; ++i) {
@@ -63,7 +63,6 @@ void random_method(int array_size) {
     arr[i] = index[i / 16];
   }
   arr[0] = array_size * 1024 / 4 - 16;
-  ;
   int j = 0;
   auto c_begin = std::clock();
   for (int i = 0; i < 10'000; ++i) {
