@@ -14,7 +14,8 @@
 ![alt text](https://github.com/vasiliykadikov/al-lab-02-cache/blob/branch-1/images/random.png)
 
 ## В процессе работы программа выдала следующие результаты:
-
+yaml
+```
   investigaion:
     travel_order: straight
     experiments:
@@ -1302,3 +1303,4 @@
           buffer_size: 8192kb
         results:
           duration: 65.4785ns
+```
