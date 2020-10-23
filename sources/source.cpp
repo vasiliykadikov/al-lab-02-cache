@@ -92,7 +92,6 @@ void f_print() {
     int L1_begin = 64;
     int L3_end = 8*1024;
 
-//прямой обход 
    int array_size = L1_begin;
    std::cout << "  investigaion:\n    travel_order: straight\n";
    std::cout << "    experiments:\n";
@@ -103,7 +102,7 @@ void f_print() {
         array_size = array_checks(array_size);
         exp++;
     }
-//обратный обход
+
     array_size = L1_begin;
     std::cout << "  investigaion:\n    travel_order: straight\n";
     std::cout << "    experiments:\n";
@@ -114,7 +113,7 @@ void f_print() {
         array_size = array_checks(array_size);
         exp++;
     }
-//рандомный обход
+
     array_size = L1_begin;
     std::cout << "  investigaion:\n    travel_order: straight\n";
     std::cout << "    experiments:\n";
